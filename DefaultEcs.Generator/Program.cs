@@ -31,7 +31,7 @@ namespace DefaultEcs.Generator
                 if (File.Exists(destinationFilePath) && !allowRegenerate)
                     continue;
 
-                Console.WriteLine("Can process type: " + type + " " + generators.Any(p => p.CanProcess(type)));
+                //Console.WriteLine("Can process type: " + type + " " + generators.Any(p => p.CanProcess(type)));
 
                 if (!generators.Any(p => p.CanProcess(type)))
                     continue;
