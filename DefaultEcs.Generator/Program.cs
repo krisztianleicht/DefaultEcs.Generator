@@ -33,18 +33,24 @@ namespace DefaultEcs.Generator
 
                 //Console.WriteLine("Can process type: " + type + " " + generators.Any(p => p.CanProcess(type)));
 
-                if (!generators.Any(p => p.CanProcess(type)))
-                    continue;
-
                 var sb = new StringBuilder();
                 foreach (var generator in generators)
+                {
+                    if (!generator.CanProcess(type))
+                        continue;
                     generator.Process(sb, type, namespaces);
+                }
 
                 foreach (var ns in namespaces)
                     sb.Insert(0, "using " + ns + ";" + Environment.NewLine);
 
-                File.WriteAllText(destinationFilePath, sb.ToString());
-                Console.WriteLine("Generated code for type: " + type);
+                if (sb.Length > 0)
+                {
+                    File.WriteAllText(destinationFilePath, sb.ToString());
+                    Console.WriteLine("Generated code for type: " + type);
+                }
+
+                namespaces.Clear();
             }
 
             Console.ReadLine();
