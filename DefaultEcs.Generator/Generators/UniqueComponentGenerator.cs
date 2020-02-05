@@ -13,38 +13,119 @@ namespace DefaultEcs.Generator.Generators
     partial class World
     {
         private EntitySet *classEscapedFullName*;
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref *ClassFullName* Get*ClassName*()
+
+        public ref readonly Entity Get*ClassName*Entity()
         {
             if (*classEscapedFullName* == null)
                 *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
-            
+
             if (*classEscapedFullName*.Count == 0)
-                throw new InvalidOperationException(""Entity with *ClassName* does not exists!"");
+                throw new InvalidOperationException(""Entity with *ClassName* doesn't exist!"");
+
             if (*classEscapedFullName*.Count > 1)
                 throw new InvalidOperationException(""More than one entity with *ClassName*!"");
 
-            var array = *classEscapedFullName*.GetEntities();
-            return ref array[0].Get<*ClassFullName*>();
+            return ref *classEscapedFullName*.GetEntities()[0];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Has*ClassName*()
+        {
+            if (*classEscapedFullName* == null)
+                *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
+
+            return *classEscapedFullName*.Count == 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref *ClassFullName* Get*ClassName*()
+        {
+            return ref Get*ClassName*Entity().Get<*ClassFullName*>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set*ClassName*(in *ClassFullName* comp)
         {
-             if (*classEscapedFullName* == null)
-                *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
-            
-            if (*classEscapedFullName*.Count == 0)
-                throw new InvalidOperationException(""Entity with *ClassName* does not exists!"");
-            if (*classEscapedFullName*.Count > 1)
-                throw new InvalidOperationException(""More than one entity with *ClassName*!"");
+            if (Has*ClassName*())
+            {
+                Get*ClassName*Entity().Set(in comp);
+            }
+            else
+            {
+                var entity = CreateEntity();
+                entity.Set(in comp);
+            }
+        }
 
-            var array = *classEscapedFullName*.GetEntities();
-            array[0].Set(in comp);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Remove*ClassName*()
+        {
+            Get*ClassName*Entity().Dispose();
         }
     }
 }";
+
+        private const string UNIQUE_FLAG_TEMPLATE = @"namespace DefaultEcs
+{
+    partial class World
+    {
+        private EntitySet *classEscapedFullName*;
+
+        public ref readonly Entity Get*ClassName*Entity()
+        {
+            if (*classEscapedFullName* == null)
+                *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
+
+            if (*classEscapedFullName*.Count == 0)
+                throw new InvalidOperationException(""Entity with *ClassName* doesn't exist!"");
+
+            if (*classEscapedFullName*.Count > 1)
+                throw new InvalidOperationException(""More than one entity with *ClassName*!"");
+
+            return ref *classEscapedFullName*.GetEntities()[0];
+        }
+
+        public bool Is*ClassName*
+        {
+            get
+            {
+                if (*classEscapedFullName* == null)
+                    *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
+
+                if (*classEscapedFullName*.Count > 1)
+                    throw new InvalidOperationException(""More than one entity with *ClassName*!"");
+
+                return *classEscapedFullName*.Count == 1;
+            }
+            set
+            {
+                if (*classEscapedFullName* == null)
+                    *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
+
+                if (*classEscapedFullName*.Count > 1)
+                    throw new InvalidOperationException(""More than one entity with *ClassName*!"");
+
+                if (value)
+                {
+                    if (*classEscapedFullName*.Count == 0)
+                    {
+                        var entity = CreateEntity();
+                        entity.Set(default(*ClassFullName*));
+                    }
+                }
+                else
+                {
+                    if (*classEscapedFullName*.Count == 1)
+                    {
+                        *classEscapedFullName*.GetEntities()[0].Remove<*ClassFullName*>();
+                    }
+                }
+            }
+        }
+    }
+}
+";
+
 
         private static Type requiredAttribute = typeof(ComponentAttribute);
 
@@ -55,10 +136,17 @@ namespace DefaultEcs.Generator.Generators
 
         public void Process(StringBuilder sb, Type t, HashSet<string> requiredNamespaces)
         {
-            requiredNamespaces.Add("System.Runtime.CompilerServices");
             requiredNamespaces.Add("System");
+            if (t.GetFields().Length == 0)
+            {
+                sb.AppendLine(UNIQUE_FLAG_TEMPLATE.ReplaceClassInformation(t));
+            }
+            else
+            {
+                requiredNamespaces.Add("System.Runtime.CompilerServices");
 
-            sb.AppendLine(UNIQUE_TEMPLATE.ReplaceClassInformation(t));
+                sb.AppendLine(UNIQUE_TEMPLATE.ReplaceClassInformation(t));
+            }
         }
 
     }
