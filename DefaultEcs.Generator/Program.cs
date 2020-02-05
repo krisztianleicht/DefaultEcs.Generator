@@ -1,4 +1,5 @@
-﻿using DefaultEcs.Generator.Generators;
+﻿using CommandLine;
+using DefaultEcs.Generator.Generators;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,48 +13,96 @@ namespace DefaultEcs.Generator
     {
         static void Main(string[] args)
         {
-            var assemblyFileName = args[0];
-            var outputDirectory = args[1];
+            CommandLine.Parser.Default.ParseArguments<GeneratorOption>(args)
+                .WithParsed(RunCodegeneration);
+        }
 
-            Console.WriteLine("Assembly path: " + assemblyFileName);
-            Console.WriteLine("Output directory: " + outputDirectory);
+        private static void RunCodegeneration(GeneratorOption generatorOption)
+        {
+            //AppDomain.CurrentDomain.AssemblyResolve += (sender, events) => OnAssemblyResolve(sender, events, generatorOption);
 
-            const bool allowRegenerate = true; // TODO make optional if needed
-
-            var targetAssembly = Assembly.LoadFile(assemblyFileName);
-            var types = GetLoadableTypes(targetAssembly);
-            var generators = typeof(ICodeGenerator).Assembly.GetTypes().Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)).ToList();
-
-            var namespaces = new HashSet<string>();
-            foreach (var type in types)
+            List<Assembly> assemblies = new List<Assembly>();
+            foreach (var assemblyLocation in generatorOption.Assemblies)
             {
-                var destinationFilePath = outputDirectory + type.Name + ".cs";
-                if (File.Exists(destinationFilePath) && !allowRegenerate)
-                    continue;
+                if (generatorOption.Verbose)
+                    Log("Loading assembly from file: " + assemblyLocation);
 
-                //Console.WriteLine("Can process type: " + type + " " + generators.Any(p => p.CanProcess(type)));
-
-                var sb = new StringBuilder();
-                foreach (var generator in generators)
-                {
-                    if (!generator.CanProcess(type))
-                        continue;
-                    generator.Process(sb, type, namespaces);
-                }
-
-                foreach (var ns in namespaces)
-                    sb.Insert(0, "using " + ns + ";" + Environment.NewLine);
-
-                if (sb.Length > 0)
-                {
-                    File.WriteAllText(destinationFilePath, sb.ToString());
-                    Console.WriteLine("Generated code for type: " + type);
-                }
-
-                namespaces.Clear();
+                assemblies.Add(Assembly.LoadFrom(assemblyLocation));
             }
 
-            Console.ReadLine();
+            var outputDirectory = generatorOption.OutputPath;
+
+            if (generatorOption.Verbose)
+                Log("Output directory: " + outputDirectory);
+
+            bool allowRegenerate = generatorOption.RegenerateAll;
+
+            var generators = typeof(ICodeGenerator).Assembly.GetTypes().Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)).ToList();
+            foreach (var assembly in assemblies)
+            {
+                var types = GetLoadableTypes(assembly);
+
+                var namespaces = new HashSet<string>();
+                foreach (var type in types)
+                {
+                    try
+                    {
+                        var destinationFilePath = outputDirectory + type.Name + ".cs";
+                        if (File.Exists(destinationFilePath) && !allowRegenerate)
+                            continue;
+
+                        var sb = new StringBuilder();
+                        foreach (var generator in generators)
+                        {
+                            if (!generator.CanProcess(type))
+                                continue;
+                            generator.Process(sb, type, namespaces);
+                        }
+
+                        foreach (var ns in namespaces)
+                            sb.Insert(0, "using " + ns + ";" + Environment.NewLine);
+
+                        if (sb.Length > 0)
+                        {
+                            File.WriteAllText(destinationFilePath, sb.ToString());
+                            if (generatorOption.Verbose)
+                                Log("Generated code for type: " + type);
+                        }
+
+                        namespaces.Clear();
+                    }
+                    catch (Exception e)
+                    {
+                        Log("Error while processing type: " + type.FullName);
+                    }
+                }
+            }
+        }
+
+        private static void Log(string message)
+        {
+            Console.WriteLine(message);
+        }
+
+        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args, GeneratorOption obj)
+        {
+            var name = args.Name;
+            Console.WriteLine("Need to load: " + name);
+            return null;
+            //var path = resolver.Resolve(args.Name);
+
+            //if (path == null)
+            //{
+            //    Debug.WriteLine(args.Name + " /// " + args.RequestingAssembly);
+            //    Debug.WriteLine("Result: null");
+            //    return null;
+            //}
+            //else
+            //{
+            //    Debug.WriteLine("Loaded: " + path);
+            //    return Assembly.LoadFrom(path);
+            //}
+
         }
 
         public static Type[] GetLoadableTypes(Assembly assembly)
