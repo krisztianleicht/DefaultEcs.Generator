@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DefaultEcs.Generator.Generators
@@ -23,6 +24,32 @@ namespace DefaultEcs.Generator.Generators
                      .Replace("*ClassName*", name)
                      .Replace("*classEscapedFullName*", fullNameEscaped)
                      .Replace("*ClassFullName*", fullName);
+        }
+
+        public static string ReplaceParamInitialization(this string input, Type type)
+        {
+            var fields = type.GetFields();
+
+            var sb = new StringBuilder(128);
+            foreach (var field in fields)
+            {
+                if (sb.Length > 0)
+                    sb.Append(", ");
+
+                sb.Append(field.FieldType.GetSafeFullName()).Append(" ").Append(field.Name);
+            }
+            var fieldParamDefinition = sb.ToString();
+
+            sb.Clear();
+
+            sb.Append("            ").AppendLine("var instance = new *ClassFullName*();");
+            foreach (var field in fields)
+                sb.Append("            ").Append("instance.").Append(field.Name).Append(" = ").Append(field.Name).AppendLine(";");
+            var fieldParamInitialization = sb.ToString();
+
+            return input
+                     .Replace("*FieldParamDefinition*", fieldParamDefinition)
+                     .Replace("*FieldParamInitialization*", fieldParamInitialization);
         }
 
         public static string ToCSharpIdentifier(this string input)
@@ -63,6 +90,28 @@ namespace DefaultEcs.Generator.Generators
         public static string ToUpperFirstChar(this string value)
         {
             return char.ToUpperInvariant(value[0]) + value.Substring(1);
+        }
+
+        public static string GetSafeFullName(this Type t)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("global::"); // DefaultEcs already using System namespace, so it will conflict with any System.XXX namespaced type
+            if (!t.IsGenericType)
+            {
+                sb.Append(t.FullName.Contains("+") ? t.FullName.Replace("+", ".") : t.FullName);
+                return sb.ToString();
+            }
+
+            sb.Append(t.FullName.Substring(0, t.FullName.LastIndexOf("`")));
+            sb.Append(t.GetGenericArguments().Aggregate("<",
+                delegate (string aggregate, Type type)
+                {
+                    return aggregate + (aggregate == "<" ? "" : ", ") + GetSafeFullName(type);
+                }
+            ));
+            sb.Append(">");
+
+            return sb.ToString();
         }
 
     }

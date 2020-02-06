@@ -58,6 +58,13 @@ namespace DefaultEcs.Generator.Generators
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set*ClassName*(*FieldParamDefinition*)
+        {
+*FieldParamInitialization*
+            Set*ClassName*(in instance);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Remove*ClassName*()
         {
             Get*ClassName*Entity().Dispose();
@@ -145,7 +152,11 @@ namespace DefaultEcs.Generator.Generators
             {
                 requiredNamespaces.Add("System.Runtime.CompilerServices");
 
-                sb.AppendLine(UNIQUE_TEMPLATE.ReplaceClassInformation(t));
+                sb.AppendLine(
+                    UNIQUE_TEMPLATE
+                    .ReplaceParamInitialization(t)
+                    .ReplaceClassInformation(t)
+                    );
             }
         }
 

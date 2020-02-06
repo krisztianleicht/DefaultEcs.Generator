@@ -24,6 +24,13 @@ namespace DefaultEcs.Generator.Generators
         public void Set*ClassName*(in *ClassFullName* component = default) { Set(component); }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set*ClassName*(*FieldParamDefinition*)
+        {
+*FieldParamInitialization*
+            Set*ClassName*(in instance);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Remove*ClassName*() => Remove<*ClassFullName*>();
     }
 }";
@@ -69,7 +76,12 @@ namespace DefaultEcs.Generator.Generators
             else
             {
                 requiredNamespaces.Add("System.Runtime.CompilerServices");
-                sb.AppendLine(GET_SET_TEMPLATE.ReplaceClassInformation(t));
+
+                sb.AppendLine(
+                    GET_SET_TEMPLATE
+                    .ReplaceParamInitialization(t)
+                    .ReplaceClassInformation(t)
+                    );
             }
         }
     }
