@@ -17,8 +17,11 @@ namespace DefaultEcs.Generator.Generators
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Has*ClassName*() => Has<*ClassFullName*>();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref *ClassFullName* Get*ClassName*() => ref Get<*ClassFullName*>();
+        public ref *ClassFullName* *ClassName*
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return ref Get<*ClassFullName*>(); }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set*ClassName*(in *ClassFullName* component = default) { Set(component); }
@@ -41,6 +44,7 @@ namespace DefaultEcs.Generator.Generators
     {
         public bool Is*ClassName*
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 return Has<*ClassFullName*>();
@@ -69,14 +73,13 @@ namespace DefaultEcs.Generator.Generators
 
         public void Process(StringBuilder sb, Type t, HashSet<string> requiredNamespaces)
         {
+            requiredNamespaces.Add("System.Runtime.CompilerServices");
             if (t.GetFields().Length == 0)
             {
                 sb.AppendLine(GET_SET_FLAG_TEMPLATE.ReplaceClassInformation(t));
             }
             else
             {
-                requiredNamespaces.Add("System.Runtime.CompilerServices");
-
                 sb.AppendLine(
                     GET_SET_TEMPLATE
                     .ReplaceParamInitialization(t)

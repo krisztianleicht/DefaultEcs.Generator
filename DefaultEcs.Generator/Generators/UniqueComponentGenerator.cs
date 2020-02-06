@@ -37,10 +37,10 @@ namespace DefaultEcs.Generator.Generators
             return *classEscapedFullName*.Count == 1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref *ClassFullName* Get*ClassName*()
+        public ref *ClassFullName* *ClassName*
         {
-            return ref Get*ClassName*Entity().Get<*ClassFullName*>();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return ref Get*ClassName*Entity().Get<*ClassFullName*>(); }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -144,14 +144,13 @@ namespace DefaultEcs.Generator.Generators
         public void Process(StringBuilder sb, Type t, HashSet<string> requiredNamespaces)
         {
             requiredNamespaces.Add("System");
+            requiredNamespaces.Add("System.Runtime.CompilerServices");
             if (t.GetFields().Length == 0)
             {
                 sb.AppendLine(UNIQUE_FLAG_TEMPLATE.ReplaceClassInformation(t));
             }
             else
             {
-                requiredNamespaces.Add("System.Runtime.CompilerServices");
-
                 sb.AppendLine(
                     UNIQUE_TEMPLATE
                     .ReplaceParamInitialization(t)
