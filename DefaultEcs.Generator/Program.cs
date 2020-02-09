@@ -19,7 +19,7 @@ namespace DefaultEcs.Generator
 
         private static void RunCodegeneration(GeneratorOption generatorOption)
         {
-            //AppDomain.CurrentDomain.AssemblyResolve += (sender, events) => OnAssemblyResolve(sender, events, generatorOption);
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, events) => OnAssemblyResolve(sender, events, generatorOption);
 
             List<Assembly> assemblies = new List<Assembly>();
             foreach (var assemblyLocation in generatorOption.Assemblies)

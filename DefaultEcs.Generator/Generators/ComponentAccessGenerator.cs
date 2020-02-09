@@ -14,8 +14,11 @@ namespace DefaultEcs.Generator.Generators
 {
     partial struct Entity
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Has*ClassName*() => Has<*ClassFullName*>();
+        public bool Has*ClassName*
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Has<*ClassFullName*>(); }
+        }
 
         public ref *ClassFullName* *ClassName*
         {

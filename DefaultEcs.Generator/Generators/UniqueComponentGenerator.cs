@@ -28,13 +28,16 @@ namespace DefaultEcs.Generator.Generators
             return ref *classEscapedFullName*.GetEntities()[0];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Has*ClassName*()
+        public bool Has*ClassName*
         {
-            if (*classEscapedFullName* == null)
-                *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (*classEscapedFullName* == null)
+                    *classEscapedFullName* = GetEntities().With<*ClassFullName*>().AsSet();
 
-            return *classEscapedFullName*.Count == 1;
+                return *classEscapedFullName*.Count == 1;
+            }
         }
 
         public ref *ClassFullName* *ClassName*
@@ -46,14 +49,13 @@ namespace DefaultEcs.Generator.Generators
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set*ClassName*(in *ClassFullName* comp)
         {
-            if (Has*ClassName*())
+            if (Has*ClassName*)
             {
                 Get*ClassName*Entity().Set(in comp);
             }
             else
             {
-                var entity = CreateEntity();
-                entity.Set(in comp);
+                CreateEntity().Set(in comp);
             }
         }
 
@@ -116,8 +118,7 @@ namespace DefaultEcs.Generator.Generators
                 {
                     if (*classEscapedFullName*.Count == 0)
                     {
-                        var entity = CreateEntity();
-                        entity.Set(default(*ClassFullName*));
+                        CreateEntity().Set(default(*ClassFullName*));
                     }
                 }
                 else
