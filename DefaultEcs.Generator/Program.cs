@@ -11,6 +11,9 @@ namespace DefaultEcs.Generator
 {
     class Program
     {
+
+        private const char DirectorySeparator = '/';
+
         static void Main(string[] args)
         {
             CommandLine.Parser.Default.ParseArguments<GeneratorOption>(args)
@@ -30,24 +33,27 @@ namespace DefaultEcs.Generator
                 assemblies.Add(Assembly.LoadFrom(assemblyLocation));
             }
 
-            var outputDirectory = generatorOption.OutputPath;
+            var outputDirectory = NormalizeFilePath(generatorOption.OutputPath);
 
             if (generatorOption.Verbose)
                 Log("Output directory: " + outputDirectory);
 
-            bool allowRegenerate = generatorOption.RegenerateAll;
+            var oldFiles = CollectOldFiles(outputDirectory);
 
+            var namespaces = new HashSet<string>();
+            bool allowRegenerate = generatorOption.RegenerateAll;
             var generators = typeof(ICodeGenerator).Assembly.GetTypes().Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)).ToList();
             foreach (var assembly in assemblies)
             {
                 var types = GetLoadableTypes(assembly);
 
-                var namespaces = new HashSet<string>();
                 foreach (var type in types)
                 {
                     try
                     {
-                        var destinationFilePath = outputDirectory + type.Name + ".cs";
+                        var relativeDirectory = GetFolderForType(type);
+                        var destinationDirectory = outputDirectory + relativeDirectory;
+                        var destinationFilePath = destinationDirectory + type.Name + ".cs";
                         if (File.Exists(destinationFilePath) && !allowRegenerate)
                             continue;
 
@@ -64,6 +70,9 @@ namespace DefaultEcs.Generator
 
                         if (sb.Length > 0)
                         {
+                            oldFiles.Remove(destinationFilePath);
+                            CreateDirectoryIfNotExists(destinationDirectory);
+
                             File.WriteAllText(destinationFilePath, sb.ToString());
                             if (generatorOption.Verbose)
                                 Log("Generated code for type: " + type);
@@ -77,6 +86,46 @@ namespace DefaultEcs.Generator
                     }
                 }
             }
+
+            // Remove unused file
+            foreach (var oldFile in oldFiles)
+            {
+                File.Delete(oldFile);
+                Log("Removing unused file: " + oldFile);
+            }
+        }
+
+        private static void CreateDirectoryIfNotExists(string destinationDirectory)
+        {
+            if (Directory.Exists(destinationDirectory))
+                return;
+
+            Directory.CreateDirectory(destinationDirectory);
+        }
+
+        private static HashSet<string> CollectOldFiles(string outputDirectory)
+        {
+            var oldFiles = new HashSet<string>();
+            foreach (var file in Directory.EnumerateFiles(outputDirectory, "*.cs", SearchOption.AllDirectories))
+                oldFiles.Add(NormalizeFilePath(file));
+            return oldFiles;
+        }
+
+        private static string NormalizeFilePath(string file)
+        {
+            return file.Replace('\\', DirectorySeparator);
+        }
+
+        private static string GetFolderForType(Type type)
+        {
+            var fullName = type.FullName;
+            if (!fullName.Contains('.'))
+                return "";
+
+
+            var fullNameEscaped = type.FullName.Replace('.', DirectorySeparator);
+            fullNameEscaped = fullNameEscaped.Substring(0, fullNameEscaped.LastIndexOf(DirectorySeparator) + 1);
+            return fullNameEscaped;
         }
 
         private static void Log(string message)
@@ -84,25 +133,25 @@ namespace DefaultEcs.Generator
             Console.WriteLine(message);
         }
 
-        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args, GeneratorOption obj)
+        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args, GeneratorOption generatorOption)
         {
+            var dllName = args.Name.Substring(0, args.Name.IndexOf(','));
             var name = args.Name;
-            Console.WriteLine("Need to load: " + name);
+
+            foreach (var resolutionDirectory in generatorOption.AssemblyResolutionFolders)
+            {
+                var dllPath = resolutionDirectory + dllName + ".dll";
+                if (!File.Exists(dllPath))
+                    continue;
+
+                if (generatorOption.Verbose)
+                    Log("Assembly successfully resolved: " + dllName + " from path: " + dllPath);
+                return Assembly.LoadFrom(dllPath);
+            }
+
+            Log("Assembly not found: " + name);
+
             return null;
-            //var path = resolver.Resolve(args.Name);
-
-            //if (path == null)
-            //{
-            //    Debug.WriteLine(args.Name + " /// " + args.RequestingAssembly);
-            //    Debug.WriteLine("Result: null");
-            //    return null;
-            //}
-            //else
-            //{
-            //    Debug.WriteLine("Loaded: " + path);
-            //    return Assembly.LoadFrom(path);
-            //}
-
         }
 
         public static Type[] GetLoadableTypes(Assembly assembly)

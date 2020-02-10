@@ -11,6 +11,9 @@ namespace DefaultEcs.Generator
         [Option('d', "dll", Required = true, HelpText = "Assembly files to be processed.")]
         public IEnumerable<string> Assemblies { get; set; }
 
+        [Option('f', "folders", Required = false, HelpText = "Assembly resolution folders.")]
+        public IEnumerable<string> AssemblyResolutionFolders { get; set; }
+
         [Option('o', "outputpath", Required = true, HelpText = "Directory where the files will be generated.")]
         public string OutputPath { get; set; }
 
