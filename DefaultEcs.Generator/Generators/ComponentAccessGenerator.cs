@@ -1,4 +1,5 @@
 ﻿using DefaultEcs.Attributes;
+using DefaultEcs.Generator.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -89,6 +90,14 @@ namespace DefaultEcs.Generator.Generators
                     .ReplaceClassInformation(t)
                     );
             }
+        }
+
+        public void Initialize()
+        {
+        }
+
+        public void Finish(string outputPath, HashSet<string> oldFiles)
+        {
         }
     }
 }

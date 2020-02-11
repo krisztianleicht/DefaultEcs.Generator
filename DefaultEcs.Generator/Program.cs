@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using DefaultEcs.Generator.Attributes;
 using DefaultEcs.Generator.Generators;
 using System;
 using System.Collections.Generic;
@@ -22,9 +23,9 @@ namespace DefaultEcs.Generator
 
         private static void RunCodegeneration(GeneratorOption generatorOption)
         {
-            AppDomain.CurrentDomain.AssemblyResolve += (sender, events) => OnAssemblyResolve(sender, events, generatorOption);
+            HashSet<Assembly> assemblies = new HashSet<Assembly>();
 
-            List<Assembly> assemblies = new List<Assembly>();
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, events) => OnAssemblyResolve(sender, events, generatorOption);
             foreach (var assemblyLocation in generatorOption.Assemblies)
             {
                 if (generatorOption.Verbose)
@@ -42,7 +43,17 @@ namespace DefaultEcs.Generator
 
             var namespaces = new HashSet<string>();
             bool allowRegenerate = generatorOption.RegenerateAll;
-            var generators = typeof(ICodeGenerator).Assembly.GetTypes().Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)).ToList();
+
+            var iCodeGenerators = GetCodeGenerators(assemblies);
+
+            foreach (var generator in iCodeGenerators)
+            {
+                if (generatorOption.Verbose)
+                    Log("Initializing generator: " + generator.GetType().FullName);
+
+                generator.Initialize();
+            }
+
             foreach (var assembly in assemblies)
             {
                 var types = GetLoadableTypes(assembly);
@@ -58,7 +69,7 @@ namespace DefaultEcs.Generator
                             continue;
 
                         var sb = new StringBuilder();
-                        foreach (var generator in generators)
+                        foreach (var generator in iCodeGenerators)
                         {
                             if (!generator.CanProcess(type))
                                 continue;
@@ -87,12 +98,29 @@ namespace DefaultEcs.Generator
                 }
             }
 
+            foreach (var generator in iCodeGenerators)
+            {
+                generator.Finish(outputDirectory, oldFiles);
+            }
+
+
             // Remove unused file
             foreach (var oldFile in oldFiles)
             {
                 File.Delete(oldFile);
                 Log("Removing unused file: " + oldFile);
             }
+        }
+
+        private static List<ICodeGenerator> GetCodeGenerators(HashSet<Assembly> assemblies)
+        {
+            List<ICodeGenerator> generators = new List<ICodeGenerator>();
+            foreach (var assembly in assemblies)
+            {
+                generators.AddRange(GetLoadableTypes(assembly).Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)));
+            }
+            generators.AddRange(GetLoadableTypes(typeof(Program).Assembly).Where(t => !t.IsInterface && typeof(ICodeGenerator).IsAssignableFrom(t)).Select(p => (ICodeGenerator)Activator.CreateInstance(p)));
+            return generators;
         }
 
         private static void CreateDirectoryIfNotExists(string destinationDirectory)
@@ -146,7 +174,10 @@ namespace DefaultEcs.Generator
 
                 if (generatorOption.Verbose)
                     Log("Assembly successfully resolved: " + dllName + " from path: " + dllPath);
-                return Assembly.LoadFrom(dllPath);
+
+                var resolvedAssembly = Assembly.LoadFrom(dllPath);
+                // assemblies.Add(resolvedAssembly);
+                return resolvedAssembly;
             }
 
             Log("Assembly not found: " + name);

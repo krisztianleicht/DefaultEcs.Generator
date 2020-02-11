@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DefaultEcs.Attributes\DefaultEcs.Attributes.csproj" />
+    <ProjectReference Include="..\DefaultEcs.Generator.Attributes\DefaultEcs.Generator.Attributes.csproj" />
   </ItemGroup>
 
 </Project>
